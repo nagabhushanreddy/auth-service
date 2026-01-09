@@ -1,0 +1,9 @@
+
+# Test reports and coverage
+reports/
+htmlcov/
+coverage.xml
+.coverage
+
+# Log files
+logs/
