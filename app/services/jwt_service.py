@@ -2,9 +2,9 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 import jwt
-from src.config import settings
+from app.config import settings
 from utils import logger
-from src.cache import TokenBlacklist
+from app.cache import TokenBlacklist
 
 
 class JwtService:

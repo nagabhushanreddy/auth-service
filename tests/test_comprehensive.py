@@ -1,12 +1,17 @@
 """Comprehensive test suite for auth-service"""
+import sys
+from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
-from src.main import app
-from src.services.auth_service import AuthService
-from src.services.jwt_service import JwtService
-from src.services.otp_service import OtpService
-from src.services.api_key_service import ApiKeyService
-from src.cache import TokenBlacklist, RateLimiter
+
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from main import app
+from app.services.auth_service import AuthService
+from app.services.jwt_service import JwtService
+from app.services.otp_service import OtpService
+from app.services.api_key_service import ApiKeyService
+from app.cache import TokenBlacklist, RateLimiter
 import time
 
 client = TestClient(app)
@@ -267,7 +272,7 @@ class TestTokenManagement:
     def test_expired_token_rejection(self):
         """Test that expired tokens are rejected"""
         import jwt as jwt_lib
-        from src.config import settings
+        from app.config import settings
         from datetime import datetime, timedelta
         
         # Create expired token

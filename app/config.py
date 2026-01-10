@@ -13,10 +13,9 @@ def initialize_config() -> None:
     
     This should be called during application startup (lifespan event).
     """
+    from utils import init_utils
     _CONFIG_DIR = os.environ.get("CONFIG_DIR", "config")
-    config.config_dir = Path(_CONFIG_DIR)
-    config.reload()  # Reload config from the service's config directory
-    init_app_logging(config.get("service.app_name", "Auth Service"))
+    init_utils(_CONFIG_DIR)
     logger.info(f"Loading config from directory: {_CONFIG_DIR}")
     logger.info(f"Config files loaded: {config.list_config_files()}")
 

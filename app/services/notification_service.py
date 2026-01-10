@@ -1,7 +1,7 @@
 """Notification service for email and SMS delivery"""
 from typing import Optional, Dict, Any
 from utils import logger
-from src.config import settings
+from app.config import settings
 
 
 class EmailTemplates:

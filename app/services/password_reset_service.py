@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import secrets
-from src.config import settings
+from app.config import settings
 from utils import logger
 
 RESET_TOKEN_EXPIRY = 3600  # 1 hour

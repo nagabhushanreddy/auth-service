@@ -4,7 +4,7 @@ import string
 from typing import Optional
 from datetime import datetime, timedelta
 from uuid import uuid4
-from src.config import settings
+from app.config import settings
 from utils import logger
 
 

@@ -4,7 +4,7 @@ from uuid import uuid4
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from utils import logger
-from src.config import settings
+from app.config import settings
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

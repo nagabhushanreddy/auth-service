@@ -8,10 +8,10 @@ from datetime import datetime
 import uvicorn
 
 from utils import logger
-from src.config import settings, initialize_config
-from src.models.response import AppException, create_error_response
-from src.middleware import correlation_id_middleware, rate_limit_middleware
-from src.routes import auth
+from app.config import settings, initialize_config
+from app.models.response import AppException, create_error_response
+from app.middleware import correlation_id_middleware, rate_limit_middleware
+from app.routes import auth
 
 
 @asynccontextmanager
@@ -120,7 +120,7 @@ async def not_found_exception_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     uvicorn.run(
-        "src.main:app",
+        "main:app",
         host=settings.host,
         port=settings.port,
         reload=settings.debug

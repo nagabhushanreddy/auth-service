@@ -1,20 +1,20 @@
 """Authentication routes"""
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import Optional
-from src.models.user import (
+from app.models.user import (
     UserRegister, UserLogin, VerifyOtpRequest, RefreshTokenRequest,
     PasswordResetRequest, PasswordResetConfirm, ApiKeyGenerate,
     ApiKeyResponse, ApiKeyRecord
 )
-from src.models.response import create_success_response, create_error_response, AppException
-from src.services.auth_service import AuthService
-from src.services.jwt_service import JwtService
-from src.services.otp_service import OtpService
-from src.services.api_key_service import ApiKeyService
-from src.services.password_reset_service import PasswordResetService
-from src.services.notification_service import NotificationService
+from app.models.response import create_success_response, create_error_response, AppException
+from app.services.auth_service import AuthService
+from app.services.jwt_service import JwtService
+from app.services.otp_service import OtpService
+from app.services.api_key_service import ApiKeyService
+from app.services.password_reset_service import PasswordResetService
+from app.services.notification_service import NotificationService
 from utils import logger
-from src.middleware import get_current_user
+from app.middleware import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 

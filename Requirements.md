@@ -61,8 +61,99 @@ All services **MUST expose OpenAPI 3.x compliant specifications**.
 
 ## 5. Identity & Authentication Service (IAM)
 
+A RESTful microservice for user authentication, session management, and credential handling with multi-factor authentication (MFA) and API key management capabilities.
+
+## Features
+
+- **User Authentication**: Username/password authentication with secure bcrypt hashing
+- **Multi-Factor Authentication (MFA)**: SMS/Email OTP support with configurable methods
+- **JWT Token Management**: Secure access and refresh token generation with HS256
+- **API Key Authentication**: Generate and manage API keys for service-to-service auth
+- **Password Recovery**: Secure password reset flow with email verification
+- **SSO Integration**: OAuth 2.0 support for Google, Facebook, Microsoft Azure AD
+- **Account Security**: Brute force protection with account locking mechanism
+- **Session Management**: Token blacklist and session tracking
+- **RESTful API**: Follows REST and OpenAPI standards
+- **Async/Await**: Fully asynchronous operations for high performance
+- **Entity Service Integration**: All CRUD operations via entity-service
+- **Utils Service Integration**: Shared logging and configuration utilities
+- **Type Safety**: Full Pydantic schema validation
+- **Error Handling**: Comprehensive error responses with proper HTTP status codes
+- **Rate Limiting**: Configurable rate limits for security
+- **OpenAPI Documentation**: Auto-generated interactive documentation
+
+## Architecture
+
+### Multi-Service Design
+
+This service integrates with other microservices for separation of concerns:
+
+```
+Service Structure:
+├── main.py                   (FastAPI app, lifespan, middleware)
+├── app/
+│   ├── __init__.py
+│   ├── config.py            (Configuration loader)
+│   ├── middleware.py        (Request context, correlation ID)
+│   ├── cache.py             (In-memory cache for tokens, OTP)
+│   ├── routes/              (API endpoints - thin layer)
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py
+│   │   ├── api_key_routes.py
+│   │   └── password_routes.py
+│   ├── services/            (Business logic layer)
+│   │   ├── __init__.py
+│   │   ├── auth_service.py
+│   │   ├── token_service.py
+│   │   ├── otp_service.py
+│   │   ├── api_key_service.py
+│   │   ├── password_service.py
+│   │   └── validation_service.py
+│   ├── models/              (Pydantic schemas)
+│   │   ├── __init__.py
+│   │   ├── auth_models.py
+│   │   ├── api_key_models.py
+│   │   ├── error_models.py
+│   │   └── user_models.py
+│   └── clients/             (External service clients)
+│       ├── __init__.py
+│       ├── entity_service.py
+│       └── notification_service.py
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_auth_endpoints.py
+│   ├── test_api_key_endpoints.py
+│   ├── test_token_service.py
+│   └── test_otp_service.py
+├── reports/
+│   ├── junit.xml
+│   ├── coverage.xml
+│   └── htmlcov/
+├── logs/
+├── config/
+├── main.py (at root level)
+├── requirements.txt
+├── requirements-dev.txt
+└── config/
+```
+
+**Benefits:**
+- ✅ Separation of concerns (auth logic vs data storage)
+- ✅ Reusable utilities across services
+- ✅ Scalable architecture
+- ✅ Easy to test and maintain
+- ✅ Clear service boundaries
+
+### OpenAPI Requirements
+- Versioned paths `/api/v1`
+- OAuth2 / Bearer JWT security scheme
+- Correlation-Id header propagation
+
+---
+
 ### 5.1 Scope
-Authentication, session management, and credential handling for Multi-Finance application.
+Authentication, session management, credential handling, and token issuance for Multi-Finance application.
 
 ### 5.2 Technology Stack
 - **Language**: Python 3.10+
@@ -71,38 +162,257 @@ Authentication, session management, and credential handling for Multi-Finance ap
 - **Token Management**: PyJWT (HS256 algorithm)
 - **Data Validation**: Pydantic
 - **Testing**: pytest with coverage reporting
-- **Logging**: Structured JSON logs
+- **Logging**: Structured JSON logs (via utils-service)
+- **Configuration**: Config management (via utils-service)
 - **Server**: Uvicorn ASGI
 
-### 5.3 Core APIs
+### 5.3 Core APIs/Endpoints
 
-#### 5.3.1 User Registration & Login
-```
-POST /auth/register
-POST /auth/login
-POST /auth/verify-otp
-POST /auth/refresh
-POST /auth/logout
-```
+### Health Check
+- `GET /health` - Service health check
+- `GET /healthz` - Kubernetes health probe
 
-#### 5.3.2 API Key Management
-```
-POST /auth/api-keys
-GET /auth/api-keys
-DELETE /auth/api-keys/{key_id}
-```
+### User Registration & Login
 
-#### 5.3.3 Password Recovery
-```
-POST /auth/password-reset
-POST /auth/password-reset/confirm
-```
+#### Register New User
+**Endpoint**: `POST /api/v1/auth/register`
 
-#### 5.3.4 System Endpoints
-```
-GET /health
-GET /v3/api-docs (OpenAPI specification)
-```
+**Request Requirements:**
+- Must accept username (required, 3-30 characters, alphanumeric)
+- Must accept email (required, valid RFC 5321 format)
+- Must accept password (required, meets strength requirements)
+- Must accept phone (optional, E.164 format)
+- Must accept mfa_enabled flag (optional, boolean, default: false)
+- Must accept mfa_method (optional if MFA disabled, required if enabled: "sms", "email", or "none")
+
+**Response Requirements:**
+- Success Status: 201 Created
+- Must return user_id (UUID format)
+- Must return sanitized user data (no password)
+- Must include mfa configuration status
+- Must include account status (active, pending, etc.)
+- Must include creation timestamp (ISO 8601)
+- Must include metadata with timestamp and correlation_id
+
+**Business Logic:**
+- Must validate username uniqueness
+- Must validate email uniqueness
+- Must hash password using bcrypt
+- Must validate password strength
+- Must store user via entity-service
+- Must not return password or hash in response
+
+#### User Login
+**Endpoint**: `POST /api/v1/auth/login`
+
+**Request Requirements:**
+- Must accept username (required, case-insensitive)
+- Must accept password (required)
+
+**Response Requirements (MFA Disabled):**
+- Success Status: 200 OK
+- Must return access_token (JWT format)
+- Must return refresh_token (JWT format)
+- Must return token_type (value: "Bearer")
+- Must return expires_in (seconds until expiry)
+- Must return user object with user_id, username, email
+- Must include metadata with timestamp and correlation_id
+
+**Response Requirements (MFA Enabled):**
+- Success Status: 202 Accepted
+- Must return message indicating OTP sent
+- Must return otp_expires_in (seconds)
+- Must return mfa_method used (sms/email)
+- Must include metadata with timestamp and correlation_id
+
+**Business Logic:**
+- Must verify username exists (case-insensitive)
+- Must verify password using bcrypt comparison
+- Must check account lock status
+- Must increment failed login counter on failure
+- Must lock account after configured max attempts
+- Must reset failed login counter on success
+- Must update last_login timestamp
+- If MFA enabled: generate and send OTP, return 202
+- If MFA disabled: generate tokens, return 200
+- Must track login attempt in audit log
+
+#### Verify OTP
+**Endpoint**: `POST /api/v1/auth/verify-otp`
+
+**Request Requirements:**
+- Must accept username (required)
+- Must accept otp (required, 6-digit numeric)
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return access_token (JWT format)
+- Must return refresh_token (JWT format)
+- Must return token_type (value: "Bearer")
+- Must return expires_in (seconds)
+
+**Business Logic:**
+- Must verify OTP matches stored value
+- Must check OTP expiration (5 minutes default)
+- Must track OTP attempt count
+- Must fail after max attempts (3 default)
+- Must invalidate OTP after successful verification
+- Must invalidate OTP after max failed attempts
+- Must generate access and refresh tokens on success
+
+#### Refresh Token
+**Endpoint**: `POST /api/v1/auth/refresh`
+
+**Request Requirements:**
+- Must accept refresh_token (required, JWT format)
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return new access_token
+- Must return new refresh_token
+- Must return token_type ("Bearer")
+- Must return expires_in
+
+**Business Logic:**
+- Must validate refresh token signature
+- Must check refresh token expiration
+- Must check token not in blacklist
+- Must generate new token pair
+- Must invalidate old refresh token
+
+#### Logout
+**Endpoint**: `POST /api/v1/auth/logout`
+
+**Request Requirements:**
+- Must require Authorization header with Bearer token
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return success confirmation
+
+**Business Logic:**
+- Must extract token from Authorization header
+- Must add token to blacklist
+- Must invalidate associated refresh token
+
+### API Key Management
+
+#### Create API Key
+**Endpoint**: `POST /api/v1/auth/api-keys`
+
+**Authentication**: Required (Bearer token)
+
+**Request Requirements:**
+- Must accept name (required, human-readable identifier)
+- Must accept expires_at (optional, ISO 8601 datetime)
+
+**Response Requirements:**
+- Success Status: 201 Created
+- Must return key_id (unique identifier)
+- Must return api_key (plain text, shown only once)
+- Must return name
+- Must return created_at timestamp
+- Must return expires_at (if provided)
+- Must include warning about key storage
+
+**Business Logic:**
+- Must generate cryptographically secure random key (32+ bytes entropy)
+- Must hash key using SHA-256 for storage
+- Must associate key with authenticated user
+- Must store via entity-service
+- Must never store plain key
+- Must return plain key only in creation response
+- Must enforce rate limit (10 per hour per user)
+
+#### List API Keys
+**Endpoint**: `GET /api/v1/auth/api-keys`
+
+**Authentication**: Required (Bearer token)
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return array of user's API keys
+- Must include key_id, name, created_at, expires_at, last_used_at, active status
+- Must NOT include actual key or hash
+
+#### Delete API Key
+**Endpoint**: `DELETE /api/v1/auth/api-keys/{key_id}`
+
+**Authentication**: Required (Bearer token)
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return deletion confirmation
+
+**Business Logic:**
+- Must verify key belongs to authenticated user
+- Must soft delete or mark as inactive
+- Must prevent reactivation
+
+### Password Recovery
+
+#### Request Password Reset
+**Endpoint**: `POST /api/v1/auth/password-reset`
+
+**Request Requirements:**
+- Must accept email (required, valid format)
+
+**Response Requirements:**
+- Success Status: 200 OK (always, even if email not found - security)
+- Must return generic success message
+
+**Business Logic:**
+- Must verify email exists in system
+- If email found: generate cryptographically secure reset token
+- Must store token with user_id and expiration (1 hour)
+- Must send reset link via notification-service
+- If email not found: return success (prevent enumeration)
+- Must enforce rate limit (3 per hour per email)
+- Must invalidate previous reset tokens for user
+
+#### Confirm Password Reset
+**Endpoint**: `POST /api/v1/auth/password-reset/confirm`
+
+**Request Requirements:**
+- Must accept reset_token (required)
+- Must accept new_password (required, meets strength requirements)
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return success confirmation
+
+**Business Logic:**
+- Must validate reset token exists
+- Must check token not expired (1 hour)
+- Must check token not already used
+- Must validate new password strength
+- Must hash new password using bcrypt
+- Must update user password via entity-service
+- Must mark reset token as used
+- Must invalidate all user sessions/tokens
+- Must send confirmation notification
+
+### System Endpoints
+
+#### Health Check
+**Endpoints**: `GET /health`, `GET /healthz`
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return service status
+- Must include timestamp
+- Must include service name and version
+
+#### OpenAPI Specification
+**Endpoint**: `GET /v3/api-docs`
+
+**Response Requirements:**
+- Success Status: 200 OK
+- Must return complete OpenAPI 3.0+ specification
+- Must include all endpoint definitions
+- Must include all schema definitions
+- Must include security schemes
+- Must include error response schemas
 
 ### 5.4 Functional Requirements
 
@@ -230,13 +540,21 @@ GET /v3/api-docs (OpenAPI specification)
   - Trace propagation to dependent services
 
 #### 5.5.5 Data Storage
-- **Current Implementation**: In-memory (for development but via entity-service)
-- **Production**: Must use entity-service for db
+- **Current Implementation**: In-memory (for development)
+- **Production**: Must use entity-service for all CRUD operations
 - **Data Entities**:
-  - Users (id, username, email, password_hash, phone, mfa_enabled, mfa_method, status, timestamps)
-  - API Keys (id, user_id, hashed_key, name, created_at, expires_at, last_used_at, active)
-  - Reset Tokens (token, user_id, expires_at, used_flag)
-  - SSO Linkages (user_id, provider, provider_id)
+  - **Users**: Core user authentication data
+    - Fields: id, username, email, password_hash, phone, mfa_enabled, mfa_method, status, failed_login_attempts, locked_until, last_login, timestamps
+  - **API Keys**: Service authentication keys
+    - Fields: id, user_id, hashed_key, name, created_at, expires_at, last_used_at, active
+  - **Reset Tokens**: Password reset tokens
+    - Fields: token, user_id, expires_at, used_flag, created_at
+  - **OTP Codes**: One-time passwords for MFA
+    - Fields: user_id, otp_code, expires_at, attempts, created_at
+  - **SSO Linkages**: OAuth provider mappings
+    - Fields: user_id, provider, provider_id, created_at
+  - **Token Blacklist**: Revoked tokens
+    - Fields: token_jti, revoked_at, expires_at
 
 ### 5.6 Service Dependencies
 
@@ -244,36 +562,65 @@ GET /v3/api-docs (OpenAPI specification)
 **Required for production deployment**
 
 All CRUD operations must use entity-service:
-- User creation, retrieval, update
-- API key management
-- Token storage
-- SSO linkage management
+- **User Management**: Create, retrieve, update user records
+- **API Key Storage**: API key lifecycle management
+- **Token Storage**: Reset tokens and OTP storage
+- **SSO Linkage**: OAuth provider mapping storage
+- **Token Blacklist**: Revoked token tracking
 
-**Current Placeholder**: `src/clients/entity_service.py`
+**Integration Requirements:**
+- Must implement async HTTP client for entity-service communication
+- Must support base URL configuration via environment variable
+- Must provide methods for create, retrieve, update, delete operations
+- Must handle entity type as parameter (user, api_key, reset_token, etc.)
+- Must support filtering entities by field values
+- Must include proper error handling and retries
+- Must propagate correlation ID headers
+- Must handle authentication headers (X-Requestor-Id)
+
+**Current Implementation**: `src/clients/entity_service.py`
 
 #### 5.6.2 Utils Service Integration
 **Required for code reusability**
 
 Common utilities to be reused from utils-service:
-- Logging utilities
-- Error handling
+- **Logging**: Must use structured JSON logging with correlation ID support
+  - Import logger from utils package
+  - Use logger methods with extra parameter for structured fields
+  - Include user_id, action, and other context in logs
+- **Configuration**: Must use config file and environment variable loading
+  - Import load_settings function from utils
+  - Define Settings class with required fields
+  - Load config from config/ directory with env override support
 
-Auth specific utilities to be placed under utils
-- Password hashing utilities
-- OTP generation algorithms
-- Token generation helpers
-- Email/phone validation
-- Password strength validation
+Auth-specific utilities to be placed under `src/services/`:
+- Password hashing utilities (`src/services/password_service.py`)
+- OTP generation algorithms (`src/services/otp_service.py`)
+- Token generation helpers (`src/services/token_service.py`)
+- Email/phone validation (`src/services/validation_service.py`)
+- Password strength validation (`src/services/password_service.py`)
 
-**Current Placeholder**: `src/clients/utils_service.py`
+**Current Implementation**: `src/clients/utils_service.py`
 
 #### 5.6.3 Notification Service Integration
-**Optional but recommended**
+**Optional but recommended for production**
 
-For production email/SMS delivery:
-- OTP delivery
-- Password reset emails
-- MFA notifications
+For email/SMS delivery:
+- **OTP Delivery**: Send OTP codes via SMS/Email
+- **Password Reset**: Send password reset emails
+- **MFA Notifications**: Account security notifications
+- **Welcome Emails**: User registration confirmations
+
+**Integration Requirements:**
+- Must implement async HTTP client for notification-service communication
+- Must provide send_sms method with phone, message, correlation_id parameters
+- Must provide send_email method with to, subject, template, data parameters
+- Must support template-based email rendering
+- Must include proper error handling and retries
+- Must propagate correlation ID for tracing
+- Must handle service unavailability gracefully
+
+**Fallback**: If notification service unavailable, log OTP codes (dev only)
 
 ### 5.7 Request/Response Specifications
 
@@ -361,34 +708,42 @@ INTERNAL_ERROR: Server error
 ### 5.10 Configuration Management
 
 #### 5.10.1 Environment Variables
-```
-NODE_ENV=development|production
-PORT=3001
-JWT_ACCESS_SECRET=<min-32-chars>
-JWT_REFRESH_SECRET=<min-32-chars>
-JWT_ACCESS_EXPIRY=900
-JWT_REFRESH_EXPIRY=604800
-JWT_ALGORITHM=HS256
+**Required Environment Variables:**
+- NODE_ENV: Environment mode (development, production)
+- PORT: Service port number
+- JWT_ACCESS_SECRET: Secret for access tokens (minimum 32 characters)
+- JWT_REFRESH_SECRET: Secret for refresh tokens (minimum 32 characters)
+- JWT_ACCESS_EXPIRY: Access token expiry in seconds
+- JWT_REFRESH_EXPIRY: Refresh token expiry in seconds
+- JWT_ALGORITHM: JWT signing algorithm (HS256)
 
-MFA_OTP_LENGTH=6
-MFA_OTP_EXPIRY=300
-MFA_OTP_ATTEMPTS=3
+**MFA Configuration:**
+- MFA_OTP_LENGTH: OTP code length (default: 6)
+- MFA_OTP_EXPIRY: OTP expiry in seconds (default: 300)
+- MFA_OTP_ATTEMPTS: Max OTP verification attempts (default: 3)
 
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-BRUTE_FORCE_MAX_ATTEMPTS=5
-BRUTE_FORCE_LOCK_TIME=900000
+**Security Configuration:**
+- RATE_LIMIT_WINDOW_MS: Rate limit window in milliseconds
+- RATE_LIMIT_MAX_REQUESTS: Max requests per window
+- BRUTE_FORCE_MAX_ATTEMPTS: Max failed login attempts
+- BRUTE_FORCE_LOCK_TIME: Account lock duration in milliseconds
 
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001
+**CORS Configuration:**
+- CORS_ORIGINS: Comma-separated allowed origins
 
-GOOGLE_CLIENT_ID=<client-id>
-GOOGLE_CLIENT_SECRET=<secret>
-FACEBOOK_CLIENT_ID=<client-id>
-MICROSOFT_CLIENT_ID=<client-id>
+**OAuth Provider Configuration:**
+- GOOGLE_CLIENT_ID: Google OAuth client ID
+- GOOGLE_CLIENT_SECRET: Google OAuth secret
+- FACEBOOK_CLIENT_ID: Facebook OAuth client ID
+- MICROSOFT_CLIENT_ID: Microsoft OAuth client ID
 
-FRONTEND_URL=http://localhost:3000
-LOG_LEVEL=info
-```
+**Service URLs:**
+- FRONTEND_URL: Frontend application URL
+- ENTITY_SERVICE_URL: Entity service base URL
+- NOTIFICATION_SERVICE_URL: Notification service base URL
+
+**Logging:**
+- LOG_LEVEL: Logging level (debug, info, warning, error)
 
 #### 5.10.2 Secrets Management
 - All secrets loaded from environment variables
@@ -399,14 +754,19 @@ LOG_LEVEL=info
 ### 5.11 Deployment Architecture
 
 #### 5.11.1 Development
-```
-python -m uvicorn src.main:app --reload
-```
+**Requirements:**
+- Must support hot reload for code changes
+- Must use uvicorn ASGI server
+- Must load from src.main:app
+- Must support debug logging
 
 #### 5.11.2 Production
-```
-gunicorn "src.main:app" --workers 4 --worker-class uvicorn.workers.UvicornWorker
-```
+**Requirements:**
+- Must use production ASGI server (gunicorn with uvicorn workers)
+- Must support multiple worker processes
+- Must use uvicorn worker class
+- Must load from src.main:app
+- Must configure worker count based on CPU cores
 
 #### 5.11.3 Containerization
 - Docker image with Python 3.10 base
@@ -470,11 +830,123 @@ gunicorn "src.main:app" --workers 4 --worker-class uvicorn.workers.UvicornWorker
 - Clear operation descriptions and example payloads
 - Comprehensive error documentation
 
+### 6.7 Project Structure
+
+All microservices MUST follow a consistent directory structure for maintainability and discoverability:
+
+**Root Level:**
+- `main.py` - Application entry point with FastAPI app, lifespan, middleware
+- `requirements.txt` - Production dependencies
+- `requirements-dev.txt` - Development dependencies (pytest, black, mypy, coverage)
+- `.env.example` - Environment variable template
+- `README.md` - Service documentation
+- `IMPLEMENTATION_STATUS.md` - Implementation progress tracking
+- `config/` - Configuration files (JSON/YAML) with placeholder support
+
+**Application Module (`app/`):**
+- `__init__.py` - Package initialization
+- `config.py` - Configuration loader (utils-service first, local JSON fallback)
+- `middleware.py` - Request context, correlation ID, logging middleware
+- `cache.py` - In-memory cache for tokens, OTP codes
+
+**Organized Submodules:**
+- `app/models/` - Pydantic schemas for request/response validation
+  - `__init__.py` - Export commonly used models
+  - `auth_models.py` - Authentication schemas
+  - `api_key_models.py` - API key schemas
+  - `error_models.py` - Error response schemas
+  - `user_models.py` - User data schemas
+  
+- `app/routes/` - API route handlers (thin layer, delegates to services)
+  - `__init__.py` - Router initialization and aggregation
+  - `auth_routes.py` - /api/v1/auth/* endpoints
+  - `api_key_routes.py` - /api/v1/auth/api-keys/* endpoints
+  - `password_routes.py` - /api/v1/auth/password-reset/* endpoints
+  
+- `app/services/` - Business logic layer
+  - `__init__.py` - Export service classes
+  - `auth_service.py` - Authentication workflows
+  - `token_service.py` - JWT token generation/validation
+  - `otp_service.py` - OTP generation/verification
+  - `api_key_service.py` - API key management
+  - `password_service.py` - Password hashing/validation
+  - `validation_service.py` - Input validation helpers
+  
+- `app/clients/` - External service clients
+  - `__init__.py` - Export client classes
+  - `entity_service.py` - Entity service integration
+  - `notification_service.py` - Notification service integration
+
+**Testing:**
+- `tests/` - All test files
+  - `__init__.py` - Test package initialization
+  - `conftest.py` - Shared test fixtures
+  - `test_auth_endpoints.py` - Authentication endpoint tests
+  - `test_api_key_endpoints.py` - API key endpoint tests
+  - `test_password_endpoints.py` - Password reset endpoint tests
+  - `test_token_service.py` - Token service unit tests
+  - `test_otp_service.py` - OTP service unit tests
+  - `test_api_key_service.py` - API key service unit tests
+  - Test files named `test_*.py` for pytest discovery
+
+**Reports:**
+- `reports/` - Test and coverage reports
+  - `junit.xml` - JUnit test results
+  - `coverage.xml` - Coverage XML report
+  - `htmlcov/` - HTML coverage report
+
+**Logs:**
+- `logs/` - Application log files (development only)
+
+**Standards:**
+- Each directory with Python code MUST have `__init__.py` for clean imports
+- Use absolute imports: `from app.services import AuthService`
+- Export commonly used classes/functions in `__init__.py` files
+- Follow layered architecture: Routes → Services → Clients → External Services
+- Keep routes thin (validation + delegation only)
+- Business logic in services layer
+- External integrations in clients layer
+
 ---
 
 ## 7. Implementation Status
 
 For detailed implementation status, progress tracking, and open items, please refer to [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+
+---
+
+## 8. Future Work / TODO Items
+
+### 8.1 Security Enhancements (Phase 2)
+- **Transport Security**: TLS 1.2+ everywhere, mTLS for internal service-to-service communication
+- **Advanced MFA**: TOTP (Time-based OTP) support, Authenticator app integration
+- **WebAuthn/FIDO2**: Passwordless authentication support
+- **Biometric Authentication**: Fingerprint, Face ID integration for mobile
+- **Session Management**: Redis-based distributed session store
+- **Token Rotation**: Automatic token rotation policies
+- **Risk-Based Authentication**: IP reputation, device fingerprinting
+- **Audit Logging**: Comprehensive authentication audit trail via audit-service
+
+### 8.2 Performance Improvements (Phase 2)
+- **Caching Layer**: Redis cache for user data, reduce entity-service calls
+- **Token Caching**: Cache token validation results
+- **Connection Pooling**: Optimize database connection management
+- **Rate Limiting**: Distributed rate limiting with Redis
+- **Async Processing**: Background jobs for notifications
+
+### 8.3 Feature Additions (Phase 2)
+- **Social Login Expansion**: GitHub, LinkedIn, Twitter OAuth support
+- **Account Management**: Email/phone verification, profile updates
+- **Device Management**: Track and manage logged-in devices
+- **Security Notifications**: Alert users of suspicious activity
+- **Password History**: Prevent password reuse
+- **Account Recovery**: Additional recovery methods (security questions)
+
+### 8.4 Observability (Phase 2)
+- **Metrics Export**: Prometheus metrics endpoint
+- **Distributed Tracing**: OpenTelemetry integration
+- **Performance Monitoring**: APM tool integration (New Relic, DataDog)
+- **Security Monitoring**: Failed login alerts, anomaly detection
 
 ---
 

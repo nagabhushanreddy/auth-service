@@ -3,10 +3,10 @@ from fastapi import HTTPException, Depends, status, Request
 from fastapi.security import HTTPBearer
 from fastapi.security.http import HTTPAuthorizationCredentials
 import uuid
-from src.services.jwt_service import JwtService
-from src.services.api_key_service import ApiKeyService
-from src.config import settings
-from src.cache import RateLimiter
+from app.services.jwt_service import JwtService
+from app.services.api_key_service import ApiKeyService
+from app.config import settings
+from app.cache import RateLimiter
 from utils import logger
 
 security = HTTPBearer(auto_error=False)

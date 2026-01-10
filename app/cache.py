@@ -3,7 +3,7 @@ import redis
 import json
 from typing import Optional, Any
 from datetime import datetime, timedelta
-from src.config import settings
+from app.config import settings
 from utils import logger
 
 

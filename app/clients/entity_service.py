@@ -2,7 +2,7 @@
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import httpx
-from src.config import settings
+from app.config import settings
 from utils import logger
 
 
