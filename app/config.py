@@ -4,23 +4,13 @@ import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
 from utils import config  # Simplified import - config is auto-initialized
-from utils import logger, init_app_logging
+from utils import logger, init_utils
 
-# Note: .env is automatically loaded by utils-service config module
+# Initialize utils with config and logger
+_CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "config"))
+init_utils(str(_CONFIG_DIR))
 
-def initialize_config() -> None:
-    """Initialize configuration by loading from the config directory.
-    
-    This should be called during application startup (lifespan event).
-    """
-    from utils import init_utils
-    _CONFIG_DIR = os.environ.get("CONFIG_DIR", "config")
-    init_utils(_CONFIG_DIR)
-    logger.info(f"Loading config from directory: {_CONFIG_DIR}")
-    logger.info(f"Config files loaded: {config.list_config_files()}")
-
-
-class AuthServiceSettings(BaseSettings):
+class Settings(BaseSettings):
     """Auth Service settings loaded from config files and environment.
     
     Config files (config/app.yaml, config/logging.yaml) are loaded by 
@@ -165,12 +155,12 @@ class AuthServiceSettings(BaseSettings):
     # Entity Service URL
     @property
     def entity_service_url(self) -> str:
-        return config.get("services.entity_service_url", "http://localhost:3002")
+        return config.get("external_services.entity_service.url", "http://localhost:3002")
     
     # Frontend URL (for password reset links)
     @property
     def frontend_url(self) -> str:
-        return config.get("services.frontend_url", "http://localhost:3000")
+        return config.get("external_services.frontend.url", "http://localhost:3000")
     
     class Config:
         env_file = ".env"
@@ -178,4 +168,4 @@ class AuthServiceSettings(BaseSettings):
         extra = "ignore"  # Ignore extra fields from .env file
 
 
-settings = AuthServiceSettings()
+settings = Settings()

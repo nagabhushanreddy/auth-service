@@ -8,7 +8,7 @@ from datetime import datetime
 import uvicorn
 
 from utils import logger
-from app.config import settings, initialize_config
+from app.config import settings
 from app.models.response import AppException, create_error_response
 from app.middleware import correlation_id_middleware, rate_limit_middleware
 from app.routes import auth
@@ -18,7 +18,6 @@ from app.routes import auth
 async def lifespan(app: FastAPI):
     """Application lifespan"""
     # Startup: Initialize configuration
-    initialize_config()
     logger.info("Starting Auth Service initialization...")
     logger.info("Auth Service initialized successfully")
     
