@@ -3,6 +3,7 @@ from typing import Optional, List
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from utils import config  # Simplified import - config is auto-initialized
 from utils import logger, init_utils
 
@@ -18,6 +19,8 @@ class Settings(BaseSettings):
     
     This class provides convenient access to configuration with defaults.
     """
+    
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     
     # Application
     @property
@@ -161,11 +164,6 @@ class Settings(BaseSettings):
     @property
     def frontend_url(self) -> str:
         return config.get("external_services.frontend.url", "http://localhost:3000")
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"  # Ignore extra fields from .env file
 
 
 settings = Settings()

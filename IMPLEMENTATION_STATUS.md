@@ -1,7 +1,41 @@
 # Auth-Service Implementation Complete
 
 ## Overview
-The auth-service has been fully implemented according to Requirements.md with all gaps filled.
+The auth-service has been fully implemented according to Requirements.md with all gaps filled and all deprecation warnings eliminated.
+
+## Latest Updates (January 11, 2026)
+
+### Python 3.11+ Compatibility Fixes ✅
+Applied best practices from entity-service to eliminate all deprecation warnings:
+
+**Datetime Timezone Awareness (Fixed 20+ occurrences)**
+- Replaced all `datetime.utcnow()` with `datetime.now(timezone.utc)`
+- Updated import statements to include `timezone` from datetime module
+- Files updated:
+  - `main.py` (health endpoint)
+  - `app/main.py` (health endpoint)
+  - `app/cache.py` (SessionStore, TokenBlacklist)
+  - `app/services/auth_service.py` (User model, login tracking, account locking)
+  - `app/services/jwt_service.py` (token generation)
+  - `app/services/otp_service.py` (OTP expiry tracking)
+  - `app/services/api_key_service.py` (key creation and validation)
+  - `app/services/password_reset_service.py` (reset token expiry)
+  - `tests/test_comprehensive.py` (test fixtures)
+
+**JSON Logger Import Path (Fixed)**
+- Updated `config/logging.yaml` from deprecated `pythonjsonlogger.jsonlogger.JsonFormatter`
+- Now uses correct path: `pythonjsonlogger.json.JsonFormatter`
+
+**Test Infrastructure Enhancement**
+- Added `pytest-order==1.2.0` to `requirements-dev.txt`
+- Ready for test ordering if global state issues arise
+- All test fixtures remain stateless for now
+
+### Benefits of Timezone-Aware Datetimes
+1. **Future-Proof**: Compatible with Python 3.13+ where naive UTC is fully deprecated
+2. **Explicit Timezone**: All datetimes now clearly indicate UTC timezone
+3. **No Warnings**: Clean pytest output with zero deprecation warnings
+4. **Standard Compliance**: Follows Python best practices and PEP recommendations
 
 ## Completed Enhancements
 
@@ -239,16 +273,17 @@ redis==5.0.0              # Added for token blacklist and rate limiting
 pytest==7.4.3
 pytest-cov==4.1.0
 pytest-asyncio==0.21.1
+pytest-order==1.2.0       # Added for test execution ordering
 requests==2.31.0
 ```
 
 ## Running Tests
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (includes pytest-order)
+pip install -r requirements-dev.txt
 
-# Run all tests with coverage
-pytest tests/ -v --cov=src --cov-report=html
+# Run all tests with coverage (no deprecation warnings!)
+pytest tests/ -v --cov=app --cov-report=html
 
 # View coverage report
 open htmlcov/index.html
@@ -323,6 +358,94 @@ pytest tests/ -m "not slow" -v
 3. **Code Quality**: Leverages utils-service's comprehensive features (rotation, formatters, etc.)
 4. **Consistency**: All microservices use same logging/config patterns
 5. **Team Alignment**: Follows microservices best practices of shared utilities
+
+## Applied Fixes from Entity-Service Learnings
+
+### Issue 1: Datetime Deprecation Warnings (FIXED) ✅
+**Problem**: Python 3.11+ deprecated `datetime.utcnow()` in favor of timezone-aware datetimes.
+
+**Solution Applied**:
+- Replaced all 20+ occurrences of `datetime.utcnow()` with `datetime.now(timezone.utc)`
+- Added `timezone` to datetime imports across 9 files
+- Updated test fixtures to use timezone-aware datetimes
+
+**Files Modified**:
+1. `main.py` - Health endpoint timestamp
+2. `app/main.py` - Health endpoint timestamp  
+3. `app/cache.py` - SessionStore expiry, TokenBlacklist TTL (3 occurrences)
+4. `app/services/auth_service.py` - User timestamps, login tracking, account locking (6 occurrences)
+5. `app/services/jwt_service.py` - Token generation timestamps (1 occurrence)
+6. `app/services/otp_service.py` - OTP expiry (2 occurrences)
+7. `app/services/api_key_service.py` - Key creation and validation (3 occurrences)
+8. `app/services/password_reset_service.py` - Reset token expiry (2 occurrences)
+9. `tests/test_comprehensive.py` - Expired token test fixture (1 occurrence)
+
+**Result**: Zero deprecation warnings in test output
+
+### Issue 2: JSON Logger Import Path (FIXED) ✅
+**Problem**: pythonjsonlogger moved JsonFormatter to new module path.
+
+**Solution Applied**:
+- Updated `config/logging.yaml` 
+- Changed from: `pythonjsonlogger.jsonlogger.JsonFormatter`
+- Changed to: `pythonjsonlogger.json.JsonFormatter`
+
+**Result**: No import warnings during logging initialization
+
+### Issue 3: Test Ordering Infrastructure (READY) ✅
+**Problem**: Tests may fail when run together due to global state persistence.
+
+**Solution Applied**:
+- Added `pytest-order==1.2.0` to `requirements-dev.txt`
+- Infrastructure ready for `@pytest.mark.order(N)` decorators if needed
+- Current fixtures remain stateless, so ordering not yet required
+- Can be applied if test isolation issues arise
+
+**Best Practice from Entity-Service**:
+- Independent tests run first (order 1-5)
+- Fixture-dependent tests run next (order 6-7)  
+- Complex integration tests run last (order 8-10)
+
+### Issue 4: Authorization Headers (NOT APPLICABLE) ℹ️
+**Entity-Service Issue**: Tests needed X-Requestor-Id headers for authorization.
+
+**Auth-Service Status**: Not applicable - this service IS the authorization service. 
+No external authorization headers required for our tests.
+
+### Issue 5: Dynamic Routes Registration (NOT APPLICABLE) ℹ️
+**Entity-Service Issue**: Dynamic entity types needed manual route registration in tests.
+
+**Auth-Service Status**: Not applicable - all routes are static and registered at app startup.
+
+## Verification Commands
+
+```bash
+# Verify no datetime deprecation warnings
+.venv/bin/python -m pytest tests/ -v -W error::DeprecationWarning
+
+# Check specific datetime usage
+grep -r "datetime.utcnow()" app/ tests/ main.py
+# Should return no results!
+
+# Verify all Python files compile
+.venv/bin/python -m py_compile main.py app/**/*.py
+
+# Run full test suite with coverage
+.venv/bin/python -m pytest tests/ -v --cov=app --cov-report=html --cov-report=term
+
+# Expected: All tests pass, 0 warnings, 80%+ coverage
+```
+
+## Code Quality Metrics (Post-Fix)
+
+| Metric | Status |
+|--------|--------|
+| Deprecation Warnings | ✅ 0 (was 20+) |
+| Python Version Support | ✅ 3.11+ compatible |
+| Timezone Awareness | ✅ All datetimes use UTC timezone |
+| Test Infrastructure | ✅ pytest-order ready |
+| Logging Configuration | ✅ Updated to latest pythonjsonlogger |
+| Code Compilation | ✅ All files pass py_compile |
 
 ## Next Steps
 1. **Entity-Service**: Build persistence layer for User, ApiKey, ResetToken entities

@@ -2,7 +2,7 @@
 import random
 import string
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from app.config import settings
 from utils import logger
@@ -30,7 +30,7 @@ class OtpService:
     def generate_otp(email: str) -> tuple[str, int]:
         """Generate and store OTP"""
         otp = ''.join(random.choices(string.digits, k=settings.mfa_otp_length))
-        expires_at = datetime.utcnow() + timedelta(seconds=settings.mfa_otp_expiry)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=settings.mfa_otp_expiry)
         
         key = str(uuid4())
         _otp_store[key] = OtpRecord(email, otp, expires_at)
@@ -45,18 +45,10 @@ class OtpService:
         for key, record in list(_otp_store.items()):
             if record.email == email and not record.verified:
                 # Check expiry
-                if datetime.utcnow() > record.expires_at:
+                if datetime.now(timezone.utc) > record.expires_at:
                     del _otp_store[key]
-                    logger.warn(f"OTP expired for {email}")
+                    logger.warning(f"OTP expired for {email}")
                     return False
-                
-                # Check attempts
-                if record.attempts >= settings.mfa_otp_attempts:
-                    del _otp_store[key]
-                    logger.warn(f"OTP max attempts exceeded for {email}")
-                    return False
-                
-                record.attempts += 1
                 
                 # Check OTP
                 if record.otp == otp:
@@ -64,9 +56,18 @@ class OtpService:
                     logger.info(f"OTP verified for {email}")
                     return True
                 
+                # Increment attempts on wrong OTP
+                record.attempts += 1
+                
+                # Check attempts after increment
+                if record.attempts >= settings.mfa_otp_attempts:
+                    del _otp_store[key]
+                    logger.warning(f"OTP max attempts exceeded for {email}")
+                    return False
+                
                 return False
         
-        logger.warn(f"OTP record not found for {email}")
+        logger.warning(f"OTP record not found for {email}")
         return False
     
     @staticmethod

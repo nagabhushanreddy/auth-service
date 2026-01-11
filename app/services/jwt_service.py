@@ -1,5 +1,5 @@
 """JWT token service"""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import jwt
 from app.config import settings
@@ -19,7 +19,7 @@ class JwtService:
         permissions: Optional[list] = None
     ) -> Dict[str, Any]:
         """Issue access and refresh tokens"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Access token payload
         access_payload = {

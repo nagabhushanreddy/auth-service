@@ -95,22 +95,22 @@ class TestApiKeyService:
     
     def test_generate_api_key(self):
         """Test API key generation"""
-        key_id, plain_key = ApiKeyService.generate_api_key(
+        key_data = ApiKeyService.generate_api_key(
             user_id="123",
             name="Test API Key"
         )
         
-        assert key_id
-        assert plain_key
-        assert len(plain_key) > 20
+        assert key_data["api_key_id"]
+        assert key_data["plain_key"]
+        assert len(key_data["plain_key"]) > 20
     
     def test_validate_api_key(self):
         """Test API key validation"""
-        key_id, plain_key = ApiKeyService.generate_api_key(
+        key_data = ApiKeyService.generate_api_key(
             user_id="123",
             name="Test API Key"
         )
         
-        result = ApiKeyService.validate_api_key(plain_key)
+        result = ApiKeyService.validate_api_key(key_data["plain_key"])
         assert result is not None
         assert result[0] == "123"

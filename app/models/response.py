@@ -1,6 +1,6 @@
 """Response models and utilities"""
 from typing import Any, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 
@@ -51,7 +51,7 @@ def create_success_response(
         success=True,
         data=data,
         metadata=Metadata(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             correlation_id=correlation_id
         )
     )
@@ -68,7 +68,7 @@ def create_error_response(
         success=False,
         error=ErrorDetail(code=code, message=message, details=details),
         metadata=Metadata(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             correlation_id=correlation_id
         )
     )

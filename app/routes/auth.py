@@ -63,7 +63,7 @@ async def register(
             status_code=400,
             detail=create_error_response(
                 "REGISTRATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -108,7 +108,7 @@ async def login(
             status_code=401,
             detail=create_error_response(
                 "LOGIN_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -126,7 +126,7 @@ async def verify_otp(
                 status_code=400,
                 detail=create_error_response(
                     "INVALID_OTP", "OTP verification failed", correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         user = AuthService.get_user_by_email(otp_data.email)
@@ -135,7 +135,7 @@ async def verify_otp(
                 status_code=400,
                 detail=create_error_response(
                     "USER_NOT_FOUND", "User not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         # Generate tokens
@@ -161,7 +161,7 @@ async def verify_otp(
             status_code=400,
             detail=create_error_response(
                 "OTP_VERIFICATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -183,7 +183,7 @@ async def refresh(
             status_code=401,
             detail=create_error_response(
                 "REFRESH_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -208,7 +208,7 @@ async def logout(
             status_code=400,
             detail=create_error_response(
                 "LOGOUT_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -220,7 +220,7 @@ async def generate_api_key(
 ):
     """Generate API key"""
     try:
-        key_id, plain_key = ApiKeyService.generate_api_key(
+        api_key_data = ApiKeyService.generate_api_key(
             user_id=current_user["user_id"],
             name=key_data.name,
             expires_in_seconds=key_data.expires_in
@@ -228,8 +228,8 @@ async def generate_api_key(
         
         return create_success_response(
             {
-                "id": key_id,
-                "key": plain_key,
+                "id": api_key_data["api_key_id"],
+                "key": api_key_data["plain_key"],
                 "message": "Save this key securely, you will not see it again"
             },
             getattr(req, 'correlation_id', None)
@@ -239,7 +239,7 @@ async def generate_api_key(
             status_code=400,
             detail=create_error_response(
                 "API_KEY_GENERATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -261,7 +261,7 @@ async def list_api_keys(
             status_code=400,
             detail=create_error_response(
                 "API_KEY_LIST_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -280,7 +280,7 @@ async def revoke_api_key(
                 status_code=404,
                 detail=create_error_response(
                     "API_KEY_NOT_FOUND", "API key not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         return create_success_response(
@@ -294,7 +294,7 @@ async def revoke_api_key(
             status_code=400,
             detail=create_error_response(
                 "API_KEY_REVOKE_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -323,7 +323,7 @@ async def request_password_reset(
             status_code=400,
             detail=create_error_response(
                 "PASSWORD_RESET_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )
 
 
@@ -342,7 +342,7 @@ async def confirm_password_reset(
                 detail=create_error_response(
                     "INVALID_RESET_TOKEN", "Reset token is invalid or expired", 
                     correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         user = AuthService.get_user_by_id(user_id)
@@ -351,7 +351,7 @@ async def confirm_password_reset(
                 status_code=400,
                 detail=create_error_response(
                     "USER_NOT_FOUND", "User not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         # Validate password strength
@@ -362,7 +362,7 @@ async def confirm_password_reset(
                     "WEAK_PASSWORD", 
                     "Password must contain uppercase, lowercase, number, and special character",
                     correlation_id=getattr(req, 'correlation_id', None)
-                ).dict()
+                ).model_dump()
             )
         
         # Update password
@@ -380,5 +380,5 @@ async def confirm_password_reset(
             status_code=400,
             detail=create_error_response(
                 "PASSWORD_RESET_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).dict()
+            ).model_dump()
         )

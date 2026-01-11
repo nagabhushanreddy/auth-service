@@ -2,7 +2,7 @@
 import secrets
 from typing import Optional, Dict
 from uuid import uuid4
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 from utils import logger
 
@@ -22,7 +22,7 @@ class ApiKeyRecord:
         self.user_id = user_id
         self.key = hashed_key
         self.name = name
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self.expires_at = expires_at
         self.last_used_at: Optional[datetime] = None
         self.active = True
@@ -40,8 +40,8 @@ class ApiKeyService:
         user_id: str,
         name: str,
         expires_in_seconds: Optional[int] = None
-    ) -> tuple[str, str]:
-        """Generate new API key, returns (key_id, plain_key)"""
+    ) -> Dict[str, str]:
+        """Generate new API key, returns dict with key_id and plain_key"""
         plain_key = str(uuid4()).replace("-", "") + str(uuid4()).replace("-", "")
         hashed_key = hashlib.sha256(plain_key.encode()).hexdigest()
         
@@ -49,7 +49,7 @@ class ApiKeyService:
         expires_at = None
         
         if expires_in_seconds:
-            expires_at = datetime.utcnow() + timedelta(seconds=expires_in_seconds)
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
         
         record = ApiKeyRecord(
             key_id=key_id,
@@ -62,7 +62,13 @@ class ApiKeyService:
         _api_key_store[key_id] = record
         logger.info(f"API key generated for user: {user_id}")
         
-        return key_id, plain_key
+        return {
+            "api_key_id": key_id,
+            "plain_key": plain_key,
+            "key_preview": plain_key[:8] + "..." + plain_key[-4:],
+            "name": name,
+            "expires_at": expires_at.isoformat() if expires_at else None
+        }
     
     @staticmethod
     def validate_api_key(plain_key: str) -> Optional[tuple[str, str]]:
@@ -72,8 +78,8 @@ class ApiKeyService:
         for key_id, record in _api_key_store.items():
             if (record.key == hashed_key and 
                 record.active and 
-                (not record.expires_at or datetime.utcnow() < record.expires_at)):
-                record.last_used_at = datetime.utcnow()
+                (not record.expires_at or datetime.now(timezone.utc) < record.expires_at)):
+                record.last_used_at = datetime.now(timezone.utc)
                 logger.info(f"API key validated for user: {record.user_id}")
                 return record.user_id, key_id
         

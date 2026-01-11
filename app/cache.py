@@ -2,7 +2,7 @@
 import redis
 import json
 from typing import Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.config import settings
 from utils import logger
 
@@ -163,12 +163,12 @@ class SessionStore:
                 logger.warning(f"Redis session set failed: {e}. Using in-memory.")
                 SessionStore._in_memory_store[key] = {
                     "data": data,
-                    "expires_at": datetime.utcnow() + timedelta(seconds=ttl_seconds)
+                    "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
                 }
         else:
             SessionStore._in_memory_store[key] = {
                 "data": data,
-                "expires_at": datetime.utcnow() + timedelta(seconds=ttl_seconds)
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
             }
     
     @staticmethod
@@ -193,7 +193,7 @@ class SessionStore:
             return None
         
         session = SessionStore._in_memory_store[key]
-        if datetime.utcnow() >= session["expires_at"]:
+        if datetime.now(timezone.utc) >= session["expires_at"]:
             del SessionStore._in_memory_store[key]
             return None
         

@@ -1,5 +1,5 @@
 """Password reset service"""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import secrets
 from app.config import settings
@@ -29,7 +29,7 @@ class PasswordResetService:
     def generate_reset_token(user_id: str) -> tuple[str, int]:
         """Generate password reset token"""
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(seconds=RESET_TOKEN_EXPIRY)
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=RESET_TOKEN_EXPIRY)
         
         _reset_token_store[token] = ResetToken(user_id, token, expires_at)
         
@@ -47,7 +47,7 @@ class PasswordResetService:
             return None
         
         # Check expiry
-        if datetime.utcnow() > record.expires_at:
+        if datetime.now(timezone.utc) > record.expires_at:
             del _reset_token_store[token]
             logger.warn("Reset token expired")
             return None

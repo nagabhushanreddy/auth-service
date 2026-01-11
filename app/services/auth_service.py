@@ -1,7 +1,7 @@
 """User service - handles user management"""
 from typing import Optional, Dict
 from uuid import uuid4
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from utils import logger
 from app.config import settings
@@ -39,8 +39,8 @@ class User:
         self.login_attempts = 0
         self.locked_until: Optional[datetime] = None
         self.last_login_at: Optional[datetime] = None
-        self.created_at = created_at or datetime.utcnow()
-        self.updated_at = updated_at or datetime.utcnow()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
     
     def to_dict(self) -> dict:
         """Convert to dictionary"""
@@ -136,7 +136,7 @@ class AuthService:
             raise ValueError("Invalid credentials")
         
         if user.status == "locked":
-            if user.locked_until and datetime.utcnow() >= user.locked_until:
+            if user.locked_until and datetime.now(timezone.utc) >= user.locked_until:
                 # auto-unlock after lock duration
                 user.status = "active"
                 user.login_attempts = 0
@@ -149,13 +149,13 @@ class AuthService:
             user.login_attempts += 1
             if user.login_attempts >= settings.brute_force_max_attempts:
                 user.status = "locked"
-                user.locked_until = datetime.utcnow() + timedelta(milliseconds=settings.brute_force_lock_time)
+                user.locked_until = datetime.now(timezone.utc) + timedelta(milliseconds=settings.brute_force_lock_time)
                 logger.warning(f"Account locked: {user.id}")
             raise ValueError("Invalid credentials")
         
         # Reset login attempts
         user.login_attempts = 0
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now(timezone.utc)
         
         if user.mfa_enabled:
             return user, True, user.mfa_method
@@ -197,7 +197,7 @@ class AuthService:
         
         # Hash new password
         user.password_hash = AuthService.hash_password(new_password)
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         logger.info(f"Password updated: {user_id}")
     
@@ -207,7 +207,7 @@ class AuthService:
         user = _user_store.get(user_id)
         if user:
             user.status = "locked"
-            user.locked_until = datetime.utcnow() + timedelta(milliseconds=settings.brute_force_lock_time)
+            user.locked_until = datetime.now(timezone.utc) + timedelta(milliseconds=settings.brute_force_lock_time)
             logger.info(f"Account locked: {user_id}")
     
     @staticmethod
@@ -226,5 +226,5 @@ class AuthService:
         user = _user_store.get(user_id)
         if user and provider not in user.sso_providers:
             user.sso_providers.append(provider)
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
             logger.info(f"SSO provider linked: {user_id}, {provider}")

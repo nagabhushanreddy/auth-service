@@ -273,14 +273,14 @@ class TestTokenManagement:
         """Test that expired tokens are rejected"""
         import jwt as jwt_lib
         from app.config import settings
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
         
         # Create expired token
         expired_payload = {
             "user_id": "test-user",
             "username": "testuser",
             "email": "test@example.com",
-            "exp": datetime.utcnow() - timedelta(hours=1),
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
             "iss": "auth-service",
             "aud": "api"
         }
