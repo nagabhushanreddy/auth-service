@@ -85,7 +85,7 @@ async def app_exception_handler(request: Request, exc: AppException):
             exc.message,
             exc.details,
             getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -99,7 +99,7 @@ async def general_exception_handler(request: Request, exc: Exception):
             "INTERNAL_ERROR",
             "Internal server error",
             correlation_id=getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -113,7 +113,7 @@ async def not_found_exception_handler(request: Request, exc: Exception):
             "NOT_FOUND",
             "Route not found",
             correlation_id=getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 

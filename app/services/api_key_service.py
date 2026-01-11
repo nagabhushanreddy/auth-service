@@ -83,7 +83,7 @@ class ApiKeyService:
                 logger.info(f"API key validated for user: {record.user_id}")
                 return record.user_id, key_id
         
-        logger.warn("API key validation failed")
+        logger.warning("API key validation failed")
         return None
     
     @staticmethod

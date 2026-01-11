@@ -43,18 +43,18 @@ class PasswordResetService:
         record = _reset_token_store.get(token)
         
         if not record:
-            logger.warn("Reset token not found")
+            logger.warning("Reset token not found")
             return None
         
         # Check expiry
         if datetime.now(timezone.utc) > record.expires_at:
             del _reset_token_store[token]
-            logger.warn("Reset token expired")
+            logger.warning("Reset token expired")
             return None
         
         # Check if already used
         if record.used:
-            logger.warn("Reset token already used")
+            logger.warning("Reset token already used")
             return None
         
         return record.user_id

@@ -111,7 +111,7 @@ class SsoService:
         provider_config = SsoService.get_provider(provider)
         
         if not provider_config:
-            logger.warn(f"Unknown SSO provider: {provider}")
+            logger.warning(f"Unknown SSO provider: {provider}")
             return None
         
         # In production, exchange code for token and fetch user profile

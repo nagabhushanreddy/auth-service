@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import uvicorn
 
 from utils import logger
-from app.config import settings, initialize_config
+from app.config import settings
 from app.models.response import AppException, create_error_response
 from app.middleware import correlation_id_middleware, rate_limit_middleware
 from app.routes import auth
@@ -17,8 +17,7 @@ from app.routes import auth
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan"""
-    # Startup: Initialize configuration
-    initialize_config()
+    # Startup
     logger.info("Starting Auth Service initialization...")
     logger.info("Auth Service initialized successfully")
     
@@ -86,7 +85,7 @@ async def app_exception_handler(request: Request, exc: AppException):
             exc.message,
             exc.details,
             getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -100,7 +99,7 @@ async def general_exception_handler(request: Request, exc: Exception):
             "INTERNAL_ERROR",
             "Internal server error",
             correlation_id=getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -114,7 +113,7 @@ async def not_found_exception_handler(request: Request, exc: Exception):
             "NOT_FOUND",
             "Route not found",
             correlation_id=getattr(request, 'correlation_id', None)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -123,5 +122,5 @@ if __name__ == "__main__":
         "src.main:app",
         host=settings.host,
         port=settings.port,
-        reload=settings.debug
+        reload=settings.environment == "development"
     )

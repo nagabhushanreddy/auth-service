@@ -1,5 +1,5 @@
 """Authentication routes"""
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, status, Request
 from typing import Optional
 from app.models.user import (
     UserRegister, UserLogin, VerifyOtpRequest, RefreshTokenRequest,
@@ -59,11 +59,10 @@ async def register(
             getattr(req, 'correlation_id', None)
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "REGISTRATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="REGISTRATION_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -104,11 +103,10 @@ async def login(
             getattr(req, 'correlation_id', None)
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=401,
-            detail=create_error_response(
-                "LOGIN_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="LOGIN_FAILED",
+            message=str(e),
+            status_code=401
         )
 
 
@@ -122,20 +120,18 @@ async def verify_otp(
         is_valid = OtpService.verify_otp(otp_data.email, otp_data.otp)
         
         if not is_valid:
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_response(
-                    "INVALID_OTP", "OTP verification failed", correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="INVALID_OTP",
+                message="OTP verification failed",
+                status_code=400
             )
         
         user = AuthService.get_user_by_email(otp_data.email)
         if not user:
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_response(
-                    "USER_NOT_FOUND", "User not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="USER_NOT_FOUND",
+                message="User not found",
+                status_code=400
             )
         
         # Generate tokens
@@ -154,14 +150,13 @@ async def verify_otp(
             },
             getattr(req, 'correlation_id', None)
         )
-    except HTTPException:
+    except AppException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "OTP_VERIFICATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="OTP_VERIFICATION_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -179,11 +174,10 @@ async def refresh(
             getattr(req, 'correlation_id', None)
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=401,
-            detail=create_error_response(
-                "REFRESH_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="REFRESH_FAILED",
+            message=str(e),
+            status_code=401
         )
 
 
@@ -204,11 +198,10 @@ async def logout(
             getattr(req, 'correlation_id', None)
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "LOGOUT_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="LOGOUT_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -235,11 +228,10 @@ async def generate_api_key(
             getattr(req, 'correlation_id', None)
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "API_KEY_GENERATION_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="API_KEY_GENERATION_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -257,11 +249,10 @@ async def list_api_keys(
             getattr(req, 'correlation_id', None)
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "API_KEY_LIST_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="API_KEY_LIST_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -276,25 +267,23 @@ async def revoke_api_key(
         success = ApiKeyService.revoke_api_key(key_id, current_user["user_id"])
         
         if not success:
-            raise HTTPException(
-                status_code=404,
-                detail=create_error_response(
-                    "API_KEY_NOT_FOUND", "API key not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="API_KEY_NOT_FOUND",
+                message="API key not found",
+                status_code=404
             )
         
         return create_success_response(
             {"message": "API key revoked"},
             getattr(req, 'correlation_id', None)
         )
-    except HTTPException:
+    except AppException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "API_KEY_REVOKE_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="API_KEY_REVOKE_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -319,11 +308,10 @@ async def request_password_reset(
             getattr(req, 'correlation_id', None)
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "PASSWORD_RESET_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="PASSWORD_RESET_FAILED",
+            message=str(e),
+            status_code=400
         )
 
 
@@ -337,32 +325,26 @@ async def confirm_password_reset(
         user_id = PasswordResetService.validate_token(data.token)
         
         if not user_id:
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_response(
-                    "INVALID_RESET_TOKEN", "Reset token is invalid or expired", 
-                    correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="INVALID_RESET_TOKEN",
+                message="Reset token is invalid or expired",
+                status_code=400
             )
         
         user = AuthService.get_user_by_id(user_id)
         if not user:
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_response(
-                    "USER_NOT_FOUND", "User not found", correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="USER_NOT_FOUND",
+                message="User not found",
+                status_code=400
             )
         
         # Validate password strength
         if not AuthService.is_password_strong(data.password):
-            raise HTTPException(
-                status_code=400,
-                detail=create_error_response(
-                    "WEAK_PASSWORD", 
-                    "Password must contain uppercase, lowercase, number, and special character",
-                    correlation_id=getattr(req, 'correlation_id', None)
-                ).model_dump()
+            raise AppException(
+                code="WEAK_PASSWORD",
+                message="Password must contain uppercase, lowercase, number, and special character",
+                status_code=400
             )
         
         # Update password
@@ -373,12 +355,11 @@ async def confirm_password_reset(
             {"message": "Password reset successfully"},
             getattr(req, 'correlation_id', None)
         )
-    except HTTPException:
+    except AppException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=create_error_response(
-                "PASSWORD_RESET_FAILED", str(e), correlation_id=getattr(req, 'correlation_id', None)
-            ).model_dump()
+        raise AppException(
+            code="PASSWORD_RESET_FAILED",
+            message=str(e),
+            status_code=400
         )
